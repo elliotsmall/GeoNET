@@ -1,0 +1,35 @@
+# Binaries and executables
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+out/
+
+# Test artifacts and coverage profiles
+*.test
+*.out
+coverage.*
+*.coverprofile
+profile.cov
+
+# Dependency directories
+# Unnecessary unless you are strictly forcing vendoring
+vendor/
+
+# Go workspace configuration files
+go.work
+go.work.sum
+
+# Local environment configuration variables
+.env
+.env.local
+
+# Common IDE/Editor setups
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
