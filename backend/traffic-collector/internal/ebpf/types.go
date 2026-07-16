@@ -37,7 +37,7 @@ type FlowStats struct {
 	LatencyCount uint32
 	State        uint8
 	L7Protocol   uint8
-	_            [2]byte // Padding
+	_            [8]byte // Padding
 }
 
 // ConnEvent gets sent when connection is established

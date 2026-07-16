@@ -32,7 +32,7 @@ struct flow_key {
     __u16 src_port;
     __u16 dst_port;
     __u8 protocol;
-    __u8 pad[3]
+    __u8 pad[3];
 } __attribute__((packed));
 
 struct flow_stats {
@@ -283,7 +283,7 @@ int tc_monitor(struct __sk_buff *skb) {
                 event->l7_protocol = l7_protocol;
                 event->state = STATE_ESTABLISHED;
                 event->timestamp = now;
-                bpf_ringbuff_submit(event,0);
+                bpf_ringbuf_submit(event,0);
             }
         } else {
             stats->packets++;

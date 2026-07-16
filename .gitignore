@@ -4,8 +4,12 @@
 *.dll
 *.so
 *.dylib
+*.o
 bin/
 out/
+
+!backend/traffic-collector/internal/ebpf/tc_monitor_arm64_bpfel.o
+!backend/traffic-collector/internal/ebpf/tc_monitor_x86_bpfel.o
 
 # Test artifacts and coverage profiles
 *.test
