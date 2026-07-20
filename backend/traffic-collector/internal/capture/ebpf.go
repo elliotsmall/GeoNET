@@ -9,7 +9,7 @@ import (
 )
 
 // Capture source constructor
-func New(iface string, localIPs []netip.Addr) (Source, error) {
+func New(iface string, localIPs map[netip.Addr]struct{}) (Source, error) {
 	return newEBPFSource(iface, localIPs)
 }
 
@@ -17,7 +17,7 @@ func New(iface string, localIPs []netip.Addr) (Source, error) {
 
 type ebpfSource struct {
 	monitor  *ebpf.Monitor
-	localIPs map[netip.Addr]bool
+	localIPs map[netip.Addr]struct{}
 	previous map[ebpf.FlowKey]counters
 }
 
@@ -25,18 +25,14 @@ type counters struct {
 	packets, bytes uint64
 }
 
-func newEBPFSource(iface string, localIPs []netip.Addr) (*ebpfSource, error) {
+func newEBPFSource(iface string, localIPs map[netip.Addr]struct{}) (*ebpfSource, error) {
 	monitor, err := ebpf.NewMonitor(iface)
 	if err != nil {
 		return nil, err
 	}
-	local := make(map[netip.Addr]bool, len(localIPs))
-	for _, ip := range localIPs {
-		local[ip.Unmap()] = true
-	}
 	return &ebpfSource{
 		monitor:  monitor,
-		localIPs: local,
+		localIPs: localIPs,
 		previous: make(map[ebpf.FlowKey]counters),
 	}, nil
 }
@@ -85,10 +81,13 @@ func (source *ebpfSource) toFlow(key ebpf.FlowKey, stats ebpf.FlowStats, delta c
 		Bytes:   delta.bytes,
 	}
 
+	_, srcLocal := source.localIPs[src]
+	_, dstLocal := source.localIPs[dst]
+
 	switch {
-	case source.localIPs[src] && !source.localIPs[dst]: // local -> remote outbound traffic
+	case srcLocal && !dstLocal: // local -> remote outbound traffic
 		flow.Remote, flow.RemotePort, flow.LocalPort, flow.Direction = dst, key.DstPort, key.SrcPort, DirOutbound
-	case source.localIPs[dst] && !source.localIPs[src]: // remote -> local inbound traffic
+	case dstLocal && !srcLocal: // remote -> local inbound traffic
 		flow.Remote, flow.RemotePort, flow.LocalPort, flow.Direction = src, key.SrcPort, key.DstPort, DirInbound
 	default: //both local or neither local. Nothing to geolocate, so skip.
 		return Flow{}, false

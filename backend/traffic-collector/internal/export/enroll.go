@@ -14,7 +14,7 @@ type Credential struct {
 	IssuedAt time.Time `json:"issued_at"`
 }
 
-func loadCredential() (Credential, error) {
+func LoadCredential() (Credential, error) {
 	var credential Credential
 	file, err := os.Open("/var/lib/geonet/credential.json")
 	if err != nil {
@@ -34,7 +34,7 @@ func loadCredential() (Credential, error) {
 	return credential, nil
 }
 
-func saveCredential(credential Credential) error {
+func SaveCredential(credential Credential) error {
 	err := os.MkdirAll("/var/lib/geonet", 0700)
 	if err != nil {
 		return fmt.Errorf("creating directory: %v", err)
@@ -53,25 +53,25 @@ func saveCredential(credential Credential) error {
 	return nil
 }
 
-func enroll() (Credential, error) {
+func Enroll() (Credential, error) {
 	var credential Credential
 
-	bootstrapToken := getEnv("BOOTSTRAP_KEY", "")
+	bootstrapToken := os.Getenv("BOOTSTRAP_KEY")
 	if bootstrapToken == "" {
 		return credential, fmt.Errorf("BOOTSTRAP_KEY NOT SET")
 	}
-	endpoint := getEnv("CONTROL_URL", "")
+	endpoint := os.Getenv("CONTROL_URL")
 	if endpoint == "" {
 		return credential, fmt.Errorf("CONTROL_URL NOT SET")
 	}
 
-	credential, err := requestCredential(bootstrapToken, endpoint)
+	credential, err := RequestCredential(bootstrapToken, endpoint)
 	if err != nil {
 		return credential, fmt.Errorf("requesting credential: %v", err)
 	}
 
 	//Credential received, save to file
-	err = saveCredential(credential)
+	err = SaveCredential(credential)
 	if err != nil {
 		return credential, fmt.Errorf("saving credential: %v", err)
 	}
@@ -79,7 +79,7 @@ func enroll() (Credential, error) {
 	return credential, err
 }
 
-func requestCredential(bootstrapToken, endpoint string) (Credential, error) {
+func RequestCredential(bootstrapToken, endpoint string) (Credential, error) {
 	var credential Credential
 
 	url := endpoint + "/enroll"
@@ -107,11 +107,4 @@ func requestCredential(bootstrapToken, endpoint string) (Credential, error) {
 	}
 
 	return credential, nil
-}
-
-func getEnv(key, defaultVal string) string {
-	if val, ok := os.LookupEnv(key); ok {
-		return val
-	}
-	return defaultVal
 }
