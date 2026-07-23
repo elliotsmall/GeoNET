@@ -3,6 +3,8 @@ package wire
 import (
 	"net/netip"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Tells the direction of the flow for geolocation purposes
@@ -23,12 +25,11 @@ type FlowRecord struct {
 	Direction  Direction `json:"direction"`
 
 	Packets uint64 `json:"packets"`
-	TxBytes uint64 `json:"tx_bytes"`
-	RxBytes uint64 `json:"rx_bytes"`
+	Bytes   uint64 `json:"bytes"`
 }
 
 type FlowBatch struct {
-	HostID      string       `json:"host_id"`
+	AgentID     uuid.UUID    `json:"host_id"`
 	BucketStart time.Time    `json:"bucket_start"`
 	BucketEnd   time.Time    `json:"bucket_end"`
 	Records     []FlowRecord `json:"records"`

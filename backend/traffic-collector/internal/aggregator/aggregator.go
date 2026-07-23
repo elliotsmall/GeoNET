@@ -7,6 +7,8 @@ import (
 
 	"GeoNET/pkg/wire"
 	"GeoNET/traffic-collector/internal/capture"
+
+	"github.com/google/uuid"
 )
 
 // Assembled batches sent to Sink.
@@ -17,17 +19,17 @@ type Sink interface {
 type Aggregator struct {
 	source   capture.Source
 	sink     Sink
-	hostID   string
+	agentID  uuid.UUID
 	interval time.Duration
 
 	bucketStart time.Time
 }
 
-func New(source capture.Source, sink Sink, hostID string, interval time.Duration) *Aggregator {
+func New(source capture.Source, sink Sink, agentID uuid.UUID, interval time.Duration) *Aggregator {
 	return &Aggregator{
 		source:   source,
 		sink:     sink,
-		hostID:   hostID,
+		agentID:  agentID,
 		interval: interval,
 	}
 }
@@ -71,7 +73,7 @@ func (agg *Aggregator) flush(end time.Time) {
 	}
 
 	batch := wire.FlowBatch{
-		HostID:      agg.hostID,
+		AgentID:     agg.agentID,
 		BucketStart: agg.bucketStart,
 		BucketEnd:   end,
 		Records:     records,
@@ -93,10 +95,7 @@ func toRecord(flow capture.Flow) wire.FlowRecord {
 		L7Protocol: flow.L7Proto,
 		Direction:  wire.Direction(flow.Direction),
 		Packets:    flow.Packets,
-	}
-
-	if flow.Direction == capture.DirInbound {
-		record.RxBytes = flow.Bytes
+		Bytes:      flow.Bytes,
 	}
 
 	return record

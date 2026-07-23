@@ -1,6 +1,7 @@
 package export
 
 import (
+	"GeoNET/pkg/wire"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,14 +9,8 @@ import (
 	"time"
 )
 
-type Credential struct {
-	HostID   string    `json:"host_id"`
-	Token    string    `json:"token"`
-	IssuedAt time.Time `json:"issued_at"`
-}
-
-func LoadCredential() (Credential, error) {
-	var credential Credential
+func LoadCredential() (wire.Credential, error) {
+	var credential wire.Credential
 	file, err := os.Open("/var/lib/geonet/credential.json")
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -27,14 +22,13 @@ func LoadCredential() (Credential, error) {
 
 	decoder := json.NewDecoder(file)
 	if err := decoder.Decode(&credential); err != nil {
-
 		return credential, fmt.Errorf("error decoding json: %v", err)
 	}
 
 	return credential, nil
 }
 
-func SaveCredential(credential Credential) error {
+func SaveCredential(credential wire.Credential) error {
 	err := os.MkdirAll("/var/lib/geonet", 0700)
 	if err != nil {
 		return fmt.Errorf("creating directory: %v", err)
@@ -53,8 +47,8 @@ func SaveCredential(credential Credential) error {
 	return nil
 }
 
-func Enroll() (Credential, error) {
-	var credential Credential
+func Enroll() (wire.Credential, error) {
+	var credential wire.Credential
 
 	bootstrapToken := os.Getenv("BOOTSTRAP_KEY")
 	if bootstrapToken == "" {
@@ -79,8 +73,8 @@ func Enroll() (Credential, error) {
 	return credential, err
 }
 
-func RequestCredential(bootstrapToken, endpoint string) (Credential, error) {
-	var credential Credential
+func RequestCredential(bootstrapToken, endpoint string) (wire.Credential, error) {
+	var credential wire.Credential
 
 	url := endpoint + "/enroll"
 

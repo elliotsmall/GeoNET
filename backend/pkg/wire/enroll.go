@@ -2,6 +2,8 @@ package wire
 
 import (
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Enroll request: agent presents enrollment and recevies credential
@@ -23,4 +25,10 @@ type IngestResponse struct {
 	Accepted int    `json:"accepted"`
 	Rejected int    `json:"rejected"`
 	Error    string `json:"error,omitempty"`
+}
+
+type Credential struct {
+	HostID   uuid.UUID `json:"host_id"`
+	Token    string    `json:"token"`
+	IssuedAt time.Time `json:"issued_at"`
 }

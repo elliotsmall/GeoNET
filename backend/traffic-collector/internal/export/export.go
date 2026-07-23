@@ -11,11 +11,11 @@ import (
 
 type Exporter struct {
 	EndpointURL string
-	Credential  Credential
+	Credential  wire.Credential
 	Client      *http.Client
 }
 
-func New(endpoint string, credential Credential) *Exporter {
+func New(endpoint string, credential wire.Credential) *Exporter {
 	return &Exporter{
 		EndpointURL: endpoint,
 		Credential:  credential,

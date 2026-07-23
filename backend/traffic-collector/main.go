@@ -13,9 +13,16 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatalf("error loading .env file: %v", err)
+	}
+
 	if len(os.Args) < 2 {
 		fmt.Fprintf(os.Stderr, "Usage: %s <interface>\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "Example: %s eth0\n", os.Args[0])
@@ -24,11 +31,11 @@ func main() {
 
 	endpoint, exists := os.LookupEnv("CONTROL_URL")
 	if !exists {
-		fmt.Fprint(os.Stderr, "CONTROL_URL environment does not exist.")
+		fmt.Fprint(os.Stderr, "CONTROL_URL environment does not exist: ")
 		os.Exit(1)
 	}
 	if endpoint == "" {
-		fmt.Fprintf(os.Stderr, "CONTROL_URL environment var exists but not set.")
+		fmt.Fprintf(os.Stderr, "CONTROL_URL environment var exists but not set: ")
 		os.Exit(1)
 	}
 
