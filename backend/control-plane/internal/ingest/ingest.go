@@ -14,9 +14,13 @@ import (
 	"github.com/google/uuid"
 )
 
+type Server struct {
+	store *store.Store
+}
+
 // Takes POST requests from Agents sent to /ingest, gets token and agentID from batch
 // calls verify credential then hands off batch
-func handleIngest(writer http.ResponseWriter, request *http.Request) {
+func (server *Server) handleIngest(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodPost {
 		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -34,7 +38,7 @@ func handleIngest(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	ok, err := verifyCredential(request.Context(), batch.AgentID, token)
+	ok, err := verifyCredential(request.Context(), server.store, batch.AgentID, token)
 	if err != nil {
 		http.Error(writer, "internal error", http.StatusInternalServerError)
 		return
@@ -44,10 +48,22 @@ func handleIngest(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
+	enriched, err := geoip.Enrich(request.Context(), batch)
+	if err != nil {
+		http.Error(writer, "enrichment failed", http.StatusInternalServerError)
+		return
+	}
+
+	if err := server.store.InsertBatch(request.Context(), enriched); err != nil {
+		http.Error(writer, "storage failed", http.StatusInternalServerError)
+		return
+	}
+
+	writer.WriteHeader(http.StatusAccepted)
 }
 
 // Takes in hostID and token from request, hashes to SHA256, calls look up of agentID and checks if credential hashes match
-func verifyCredential(ctx context.Context, agentID uuid.UUID, token string) (bool, error) {
+func verifyCredential(ctx context.Context, store *store.Store, agentID uuid.UUID, token string) (bool, error) {
 	data := []byte(token)
 	tokenHashIncoming := sha256.Sum256(data)
 

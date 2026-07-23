@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func LookupAgent(ctx context.Context, hostID uuid.UUID) ([32]byte, error) {
+func (store *Store) LookupAgent(ctx context.Context, hostID uuid.UUID) ([32]byte, error) {
 	const query = `
 	SELECT token
 	FROM agents
