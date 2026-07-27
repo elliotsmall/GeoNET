@@ -9,17 +9,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"GeoNET/control-plane/internal/geoip"
 	"GeoNET/control-plane/internal/store"
 	"GeoNET/pkg/wire"
 
 	"github.com/google/uuid"
 )
-
-type Server struct {
-	store *store.Store
-	geoip *geoip.Enricher
-}
 
 // Takes POST requests from Agents sent to /ingest, gets token and agentID from batch
 // calls verify credential then hands off batch

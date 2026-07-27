@@ -1,10 +1,17 @@
 package ingest
 
 import (
+	"GeoNET/control-plane/internal/geoip"
+	"GeoNET/control-plane/internal/store"
 	"fmt"
 	"net/http"
 	"strings"
 )
+
+type Server struct {
+	store *store.Store
+	geoip *geoip.Enricher
+}
 
 func extractBearerToken(request *http.Request) (string, error) {
 	authHeader := request.Header.Get("Authorization")
