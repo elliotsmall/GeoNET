@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
 
+	"GeoNET/control-plane/internal/geoip"
 	"GeoNET/control-plane/internal/store"
 	"GeoNET/pkg/wire"
 
@@ -16,6 +18,7 @@ import (
 
 type Server struct {
 	store *store.Store
+	geoip *geoip.Enricher
 }
 
 // Takes POST requests from Agents sent to /ingest, gets token and agentID from batch
@@ -48,7 +51,7 @@ func (server *Server) handleIngest(writer http.ResponseWriter, request *http.Req
 		return
 	}
 
-	enriched, err := geoip.Enrich(request.Context(), batch)
+	enriched, err := server.geoip.Enrich(request.Context(), batch)
 	if err != nil {
 		http.Error(writer, "enrichment failed", http.StatusInternalServerError)
 		return
@@ -67,10 +70,12 @@ func verifyCredential(ctx context.Context, store *store.Store, agentID uuid.UUID
 	data := []byte(token)
 	tokenHashIncoming := sha256.Sum256(data)
 
-	tokenHashStored, err := store.LookupAgent(ctx, agentID)
+	tokenHashStoredString, err := store.LookupAgent(ctx, agentID)
 	if err != nil {
 		return false, err
 	}
+
+	tokenHashStored, err := hex.DecodeString(tokenHashStoredString)
 
 	if subtle.ConstantTimeCompare(tokenHashIncoming[:], tokenHashStored[:]) == 1 {
 		return true, nil

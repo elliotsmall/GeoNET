@@ -65,7 +65,7 @@ func main() {
 
 	exporter := export.New(endpoint, credential)
 
-	agg := aggregator.New(source, exporter, credential.HostID, time.Second*10)
+	agg := aggregator.New(source, exporter, credential.AgentID, time.Second*10)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)

@@ -28,7 +28,7 @@ type IngestResponse struct {
 }
 
 type Credential struct {
-	HostID   uuid.UUID `json:"host_id"`
+	AgentID  uuid.UUID `json:"host_id"`
 	Token    string    `json:"token"`
 	IssuedAt time.Time `json:"issued_at"`
 }
