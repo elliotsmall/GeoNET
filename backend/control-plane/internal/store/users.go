@@ -3,6 +3,9 @@ package store
 import (
 	"context"
 
+	"fmt"
+	"log"
+
 	"github.com/google/uuid"
 )
 
@@ -33,4 +36,16 @@ func (store *Store) LookupByUsername(ctx context.Context, username string) (*Use
 		return nil, err
 	}
 	return user, nil
+}
+
+func (store *Store) CreateUser(ctx context.Context, userid uuid.UUID, username, email, pass, role string) error {
+	_, err := store.pool.Exec(ctx,
+		`INSERT INTO user_auth (user_id, username, email, pass, role, is_active)
+		VALUES ($1, $2, $3, $4, $5, 1)`,
+		userid, username, email, pass, role)
+	if err != nil {
+		return fmt.Errorf("inserting user: %w", err)
+	}
+	log.Printf("user successfully inserted: %s", username)
+	return nil
 }
