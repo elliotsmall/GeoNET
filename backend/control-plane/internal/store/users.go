@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 
+	"time"
+
 	"github.com/google/uuid"
 )
 
@@ -47,5 +49,18 @@ func (store *Store) CreateUser(ctx context.Context, userid uuid.UUID, username, 
 		return fmt.Errorf("inserting user: %w", err)
 	}
 	log.Printf("user successfully inserted: %s", username)
+	return nil
+}
+
+func (store *Store) SetUserSession(ctx context.Context, userID uuid.UUID, username string, token []byte, expires time.Time) error {
+	_, err := store.pool.Exec(ctx,
+		`UPDATE user_auth
+	SET session_token = $1, session_expires = $2
+	WHERE user_id = $3 AND is_active = true`,
+		token, expires, userID)
+	if err != nil {
+		return fmt.Errorf("setting session token: %w", err)
+	}
+	log.Printf("user session set: %s", username)
 	return nil
 }
