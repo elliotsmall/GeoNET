@@ -59,7 +59,10 @@ func (server *Server) handleEnroll(writer http.ResponseWriter, request *http.Req
 }
 
 func generateCredential() (wire.Credential, string, error) {
-	agentID := uuid.New()
+	agentID, err := uuid.NewV7()
+	if err != nil {
+		return wire.Credential{}, "", fmt.Errorf("generating uuid: %w", err)
+	}
 
 	token, err := generateToken()
 	if err != nil {
