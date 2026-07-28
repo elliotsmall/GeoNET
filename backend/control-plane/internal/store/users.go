@@ -55,12 +55,25 @@ func (store *Store) CreateUser(ctx context.Context, userid uuid.UUID, username, 
 func (store *Store) SetUserSession(ctx context.Context, userID uuid.UUID, username string, token []byte, expires time.Time) error {
 	_, err := store.pool.Exec(ctx,
 		`UPDATE user_auth
-	SET session_token = $1, session_expires = $2
-	WHERE user_id = $3 AND is_active = true`,
+		SET session_token = $1, session_expires = $2
+		WHERE user_id = $3 AND is_active = true`,
 		token, expires, userID)
 	if err != nil {
 		return fmt.Errorf("setting session token: %w", err)
 	}
 	log.Printf("user session set: %s", username)
+	return nil
+}
+
+func (store *Store) ClearUserSession(ctx context.Context, userID uuid.UUID, username string) error {
+	_, err := store.pool.Exec(ctx,
+		`UPDATE user_auth
+		SET session_token = NULL, session_expires = NULL
+		WHERE user_id = $1`,
+		userID)
+	if err != nil {
+		return fmt.Errorf("clearing session token: %w", err)
+	}
+	log.Printf("user session cleared: %s", username)
 	return nil
 }
