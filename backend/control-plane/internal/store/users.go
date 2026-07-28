@@ -15,7 +15,7 @@ type User struct {
 	UserID   uuid.UUID
 	Username string
 	Email    string
-	PassHash string
+	Pass     string
 	Role     string
 	IsActive bool
 }
@@ -28,9 +28,9 @@ func (store *Store) LookupByUsername(ctx context.Context, username string) (*Use
 		FROM user_auth
 		WHERE username = $1`, username).Scan(
 		&user.UserID,
-		&user.UserID,
+		&user.Username,
 		&user.Email,
-		&user.PassHash,
+		&user.Pass,
 		&user.Role,
 		&user.IsActive,
 	)
@@ -76,4 +76,26 @@ func (store *Store) ClearUserSession(ctx context.Context, userID uuid.UUID, user
 	}
 	log.Printf("user session cleared: %s", username)
 	return nil
+}
+
+func (store *Store) GetUserBySession(ctx context.Context, token []byte) (*User, error) {
+	user := &User{}
+	err := store.pool.QueryRow(ctx,
+		`SELECT user_id, username, email, pass, role, is_active
+		FROM user_auth
+		WHERE session_token = $1
+		AND session_expiration > now()
+		AND is_active = true`,
+		token).Scan(
+		&user.UserID,
+		&user.Username,
+		&user.Email,
+		&user.Pass,
+		&user.Role,
+		&user.IsActive,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
 }
