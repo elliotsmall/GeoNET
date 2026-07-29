@@ -40,6 +40,25 @@ func (store *Store) LookupByUsername(ctx context.Context, username string) (*Use
 	return user, nil
 }
 
+func (store *Store) LookupByUUID(ctx context.Context, userID uuid.UUID) (*User, error) {
+	user := &User{}
+
+	err := store.pool.QueryRow(ctx,
+		`SELECT user_id, username, email, role, is_active
+		FROM user_auth
+		WHERE username = $1`, userID).Scan(
+		&user.UserID,
+		&user.Username,
+		&user.Email,
+		&user.Role,
+		&user.IsActive,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
 func (store *Store) CreateUser(ctx context.Context, userid uuid.UUID, username, email, pass, role string) error {
 	_, err := store.pool.Exec(ctx,
 		`INSERT INTO user_auth (user_id, username, email, pass, role, is_active)
@@ -52,7 +71,7 @@ func (store *Store) CreateUser(ctx context.Context, userid uuid.UUID, username, 
 	return nil
 }
 
-func (store *Store) SetUserSession(ctx context.Context, userID uuid.UUID, username string, token []byte, expires time.Time) error {
+func (store *Store) SetUserSession(ctx context.Context, userID uuid.UUID, token []byte, expires time.Time) error {
 	_, err := store.pool.Exec(ctx,
 		`UPDATE user_auth
 		SET session_token = $1, session_expires = $2
@@ -61,7 +80,7 @@ func (store *Store) SetUserSession(ctx context.Context, userID uuid.UUID, userna
 	if err != nil {
 		return fmt.Errorf("setting session token: %w", err)
 	}
-	log.Printf("user session set: %s", username)
+	log.Printf("user session set")
 	return nil
 }
 
