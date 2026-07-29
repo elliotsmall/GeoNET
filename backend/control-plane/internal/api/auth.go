@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type ctxKey string
@@ -32,6 +33,12 @@ type createUserRequest struct {
 	Username string    `json:"username"`
 	Email    string    `json:"email"`
 	Password string    `json:"password"`
+	Role     string    `json:"role"`
+}
+
+type meResponse struct {
+	UserID   uuid.UUID `json:"user_id"`
+	Username string    `json:"string"`
 	Role     string    `json:"role"`
 }
 
@@ -67,6 +74,7 @@ func (server *Server) Login(writer http.ResponseWriter, request *http.Request) {
 	ok, err := VerifyPass(user.Pass, req.Password)
 	if err != nil {
 		http.Error(writer, "server error", http.StatusInternalServerError)
+		return
 	}
 	if !ok {
 		http.Error(writer, "invalid credentials", http.StatusUnauthorized)
@@ -118,7 +126,7 @@ func (server *Server) Logout(writer http.ResponseWriter, request *http.Request) 
 		return
 	}
 
-	if err := server.store.SetUserSession(request.Context(), userID, nil, time.Now()); err != nil {
+	if err := server.store.ClearUserSession(request.Context(), userID); err != nil {
 		http.Error(writer, "server error", http.StatusInternalServerError)
 		return
 	}
@@ -136,7 +144,8 @@ func (server *Server) Logout(writer http.ResponseWriter, request *http.Request) 
 	writer.WriteHeader(http.StatusNoContent)
 }
 
-func (server *Server) CreateUser(writer http.ResponseWriter, request http.Request) {
+// Create User handler
+func (server *Server) CreateUser(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodPost {
 		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -167,14 +176,87 @@ func (server *Server) CreateUser(writer http.ResponseWriter, request http.Reques
 	newUUID, err := uuid.NewV7()
 	if err != nil {
 		http.Error(writer, "server error", http.StatusInternalServerError)
+		return
 	}
 
-	if err := server.store.CreateUser(request.Context(), newUUID, req.Username, req.Email, req.Password, req.Role); err != nil {
-
+	if err := server.store.CreateUser(request.Context(), newUUID, req.Username, req.Email, passHash, req.Role); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			http.Error(writer, "duplicate user", http.StatusConflict)
+			return
+		}
+		http.Error(writer, "server error", http.StatusInternalServerError)
+		return
 	}
+
+	writer.WriteHeader(http.StatusCreated)
+}
+
+// Function to verify the who the user is in order to ensure they can only access allowed pages upon GET request
+func (server *Server) Me(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodGet {
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID, ok := UserIDFromContext(request.Context())
+	if !ok {
+		http.Error(writer, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	username, ok := UsernameFromContext(request.Context())
+	if !ok {
+		http.Error(writer, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	role, ok := RoleFromContext(request.Context())
+	if !ok {
+		http.Error(writer, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	resp := meResponse{
+		UserID:   userID,
+		Username: username,
+		Role:     role,
+	}
+
+	writer.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(writer).Encode(resp)
 }
 
 // ------------------MIDDLEWARE------------------
+
+// Takes incoming request going to protected route, verifies session cookie,
+// and gives new context
+func (server *Server) WithAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		cookie, err := request.Cookie(SessionCookieName)
+		if err != nil || cookie.Value == "" {
+			http.Error(writer, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		tokenHash := hashSessionToken(cookie.Value)
+
+		user, err := server.store.GetUserBySession(request.Context(), tokenHash)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				http.Error(writer, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+			http.Error(writer, "server error", http.StatusInternalServerError)
+			return
+		}
+
+		ctx := context.WithValue(request.Context(), userIDKey, user.UserID)
+		ctx = context.WithValue(ctx, usernameKey, user.Username)
+		ctx = context.WithValue(ctx, roleKey, user.Role)
+		next.ServeHTTP(writer, request.WithContext(ctx))
+	})
+}
 
 // ------------------HELPERS------------------
 
@@ -188,6 +270,11 @@ func hashSessionToken(token string) []byte {
 func UserIDFromContext(ctx context.Context) (uuid.UUID, bool) {
 	id, ok := ctx.Value(userIDKey).(uuid.UUID)
 	return id, ok
+}
+
+func UsernameFromContext(ctx context.Context) (string, bool) {
+	username, ok := ctx.Value(usernameKey).(string)
+	return username, ok
 }
 
 // Helper to get Role from context

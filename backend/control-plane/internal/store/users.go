@@ -84,7 +84,7 @@ func (store *Store) SetUserSession(ctx context.Context, userID uuid.UUID, token 
 	return nil
 }
 
-func (store *Store) ClearUserSession(ctx context.Context, userID uuid.UUID, username string) error {
+func (store *Store) ClearUserSession(ctx context.Context, userID uuid.UUID) error {
 	_, err := store.pool.Exec(ctx,
 		`UPDATE user_auth
 		SET session_token = NULL, session_expires = NULL
@@ -93,7 +93,7 @@ func (store *Store) ClearUserSession(ctx context.Context, userID uuid.UUID, user
 	if err != nil {
 		return fmt.Errorf("clearing session token: %w", err)
 	}
-	log.Printf("user session cleared: %s", username)
+	log.Printf("user session cleared")
 	return nil
 }
 
