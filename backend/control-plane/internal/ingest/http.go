@@ -2,6 +2,7 @@ package ingest
 
 import (
 	"GeoNET/control-plane/internal/geoip"
+	"GeoNET/control-plane/internal/recent"
 	"GeoNET/control-plane/internal/store"
 	"fmt"
 	"net/http"
@@ -9,8 +10,9 @@ import (
 )
 
 type Server struct {
-	store *store.Store
-	geoip *geoip.Enricher
+	store  *store.Store
+	geoip  *geoip.Enricher
+	recent *recent.RingBuffer
 }
 
 func extractBearerToken(request *http.Request) (string, error) {

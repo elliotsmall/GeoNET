@@ -51,6 +51,8 @@ func (server *Server) handleIngest(writer http.ResponseWriter, request *http.Req
 		return
 	}
 
+	server.recent.Push(enriched)
+
 	if err := server.store.InsertBatch(request.Context(), enriched); err != nil {
 		http.Error(writer, "storage failed", http.StatusInternalServerError)
 		return
