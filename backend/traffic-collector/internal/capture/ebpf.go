@@ -6,6 +6,7 @@ import (
 	"GeoNET/traffic-collector/internal/ebpf"
 	"fmt"
 	"net/netip"
+	"time"
 )
 
 // Capture source constructor
@@ -92,6 +93,7 @@ func (source *ebpfSource) toFlow(key ebpf.FlowKey, stats ebpf.FlowStats, delta c
 	default: //both local or neither local. Nothing to geolocate, so skip.
 		return Flow{}, false
 	}
+	flow.Timestamp = time.Now()
 
 	return flow, true
 }

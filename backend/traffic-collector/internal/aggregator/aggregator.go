@@ -96,6 +96,7 @@ func toRecord(flow capture.Flow) wire.FlowRecord {
 		Direction:  wire.Direction(flow.Direction),
 		Packets:    flow.Packets,
 		Bytes:      flow.Bytes,
+		Timestamp:  flow.Timestamp,
 	}
 
 	return record

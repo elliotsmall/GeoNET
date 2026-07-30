@@ -1,6 +1,9 @@
 package capture
 
-import "net/netip"
+import (
+	"net/netip"
+	"time"
+)
 
 // Tells consumer which endpoint is remote
 // Resolves by comparing flow endpoints against host addresses
@@ -31,6 +34,7 @@ type Flow struct {
 	Direction  Direction
 	Packets    uint64
 	Bytes      uint64
+	Timestamp  time.Time
 }
 
 type Source interface {

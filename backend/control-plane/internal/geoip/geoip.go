@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/google/uuid"
 	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/oschwald/geoip2-golang"
 )
@@ -19,7 +20,8 @@ type Enricher struct {
 }
 
 type EnrichedRecord struct {
-	flowRecord wire.FlowRecord
+	FlowRecord wire.FlowRecord
+	AgentID    uuid.UUID
 	Latitude   float64
 	Longitude  float64
 	Country    string
@@ -57,7 +59,8 @@ func (enricher *Enricher) Enrich(ctx context.Context, batch wire.FlowBatch) ([]E
 
 		lat, long, country, city := geoFields(geoStats)
 		geoRecords = append(geoRecords, EnrichedRecord{
-			flowRecord: record,
+			FlowRecord: record,
+			AgentID:    batch.AgentID,
 			Latitude:   lat,
 			Longitude:  long,
 			Country:    country,

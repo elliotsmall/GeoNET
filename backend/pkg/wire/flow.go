@@ -26,6 +26,8 @@ type FlowRecord struct {
 
 	Packets uint64 `json:"packets"`
 	Bytes   uint64 `json:"bytes"`
+
+	Timestamp time.Time `json:"timestamp"`
 }
 
 type FlowBatch struct {
