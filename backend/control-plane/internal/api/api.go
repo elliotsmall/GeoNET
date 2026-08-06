@@ -11,9 +11,12 @@ import (
 	"slices"
 	"strconv"
 	"time"
+
+	"github.com/google/uuid"
 )
 
-func (s *Server) RealTimeFlows(w http.ResponseWriter, r *http.Request) {
+// Creates a GeoView from the ringbuffer holding recent flows
+func (s *Server) RealTimeGeoView(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -85,10 +88,49 @@ func (s *Server) RealTimeFlows(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (s *Server) FlowsByWindow(w http.ResponseWriter, r *http.Request) {
+//func (s *Server) RealTimeTopology(w http.ResponseWriter, r *http.Request)
+
+// Creates a GeoView from timescaleDB using specified window passed through url
+func (s *Server) GeoViewByWindow(w http.ResponseWriter, r *http.Request) {
 	window, err := parseWindow(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	requestedN := 10
+
+	if v := r.URL.Query().Get("top"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err == nil && n > 0 {
+			requestedN = n
+		}
+	}
+
+	agentID, err := uuid.Parse(r.URL.Query().Get("agent_id"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	points, err := s.store.QueryFlowsSince(r.Context(), window.Start, agentID)
+	if err != nil {
+		http.Error(w, "server error", http.StatusInternalServerError)
+	}
+
+	if len(points) == 0 {
+		view := &api.GeoView{
+			Window:  api.Window{},
+			Points:  []api.GeoPoint{},
+			TopN:    []api.GeoPoint{},
+			Summary: api.NetworkSummary{},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(view)
+		return
+	}
+
+	topN, err := s.store.QueryTopNFlows(r.Context(), window.Start, agentID, requestedN)
+	if err != nil {
+		http.Error(w, "server error", http.StatusInternalServerError)
 	}
 
 }

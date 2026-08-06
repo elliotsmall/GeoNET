@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"GeoNET/control-plane/internal/geoip"
+	"GeoNET/pkg/api"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -50,12 +51,11 @@ func (store *Store) InsertBatch(ctx context.Context, records []geoip.EnrichedRec
 	return nil
 }
 
-func (store *Store) QueryFlowsSince(ctx context.Context, start time.Time, agentID uuid.UUID) ([]geoip.EnrichedRecord, error) {
+func (store *Store) QueryFlowsSince(ctx context.Context, start time.Time, agentID uuid.UUID) ([]api.GeoPoint, error) {
 	rows, err := store.pool.Query(ctx,
-		`SELECT agent_id, local_port, remote_addr, remote_port, protocol, l7_protocol, bytes,
-		packets, direction, timestamp, latitude, longitude, city, country
+		`SELECT latitude, longitude, city, country, packets, bytes, remote_addr, direction
 		FROM flows
-		WHERE timestamp > $1 AND ($2::uuid IS NULL OR agent_id = $2)
+		WHERE timestamp > $1 AND agent_id = $2
 		ORDER BY timestamp`,
 		start, agentID)
 	if err != nil {
@@ -63,33 +63,62 @@ func (store *Store) QueryFlowsSince(ctx context.Context, start time.Time, agentI
 	}
 	defer rows.Close()
 
-	var records []geoip.EnrichedRecord
+	var points []api.GeoPoint
 	for rows.Next() {
-		var r geoip.EnrichedRecord
+		var p api.GeoPoint
 		if err := rows.Scan(
-			&r.AgentID,
-			&r.FlowRecord.LocalPort,
-			&r.FlowRecord.RemoteAddr,
-			&r.FlowRecord.RemotePort,
-			&r.FlowRecord.IPProtocol,
-			&r.FlowRecord.L7Protocol,
-			&r.FlowRecord.Bytes,
-			&r.FlowRecord.Packets,
-			&r.FlowRecord.Direction,
-			&r.FlowRecord.Timestamp,
-			&r.Latitude,
-			&r.Longitude,
-			&r.City,
-			&r.Country,
+			&p.Lat, &p.Lng, &p.City, &p.Country, &p.Packets, &p.Bytes, &p.RemoteAddr, &p.Direction,
 		); err != nil {
 			return nil, fmt.Errorf("scanning flow record: %w", err)
 		}
-		records = append(records, r)
+		points = append(points, p)
 	}
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("reading query results: %w", err)
 	}
 
-	return records, nil
+	return points, nil
+}
+
+func (store *Store) QueryTopNFlows(ctx context.Context, start time.Time, agentID uuid.UUID, n int) ([]api.GeoPoint, error) {
+	rows, err := store.pool.Query(ctx,
+		`SELECT latitude, longitude, city, country, packets, bytes, remote_addr, direction
+		FROM flows
+		WHERE timestamp > $1 AND agent_id = $2
+		ORDER BY packets DESC
+		LIMIT $3`,
+		start, agentID, n)
+	if err != nil {
+		return nil, fmt.Errorf("querying database: %w", err)
+	}
+	defer rows.Close()
+
+	var points []api.GeoPoint
+	for rows.Next() {
+		var p api.GeoPoint
+		if err := rows.Scan(
+			&p.Lat, &p.Lng, &p.City, &p.Country, &p.Packets, &p.Bytes, &p.RemoteAddr, &p.Direction,
+		); err != nil {
+			return nil, fmt.Errorf("scanning flow record: %w", err)
+		}
+		points = append(points, p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("reading query results: %w", err)
+	}
+
+	return points, nil
+}
+
+func (store *Store) AggregateSummary(ctx context.Context, start time.Time, agentID uuid.UUID) (uint64, uint64, int, error) {
+	rows, err := store.pool.Query(ctx,
+		`SELECT COUNT(*) as total_flows, 
+		SUM(packets) as total_packets,
+		SUM(bytes) as total_bytes,
+		COUNT(DISTINCT remote_addr) as unique_ips
+		FROM flows
+		WHERE timestamp > $1 AND agent_id = $2`,
+		start, agentID)
 }

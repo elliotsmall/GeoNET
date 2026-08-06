@@ -1,17 +1,27 @@
 package api
 
 import (
+	"net/netip"
 	"time"
 )
 
+type Direction uint8
+
+const (
+	DirectionEgress  Direction = 0 // geolocate egress traffic (agent -> remote)
+	DirectionIngress Direction = 1 // geolocate ingress traffic (remote -> agent)
+)
+
 type GeoPoint struct {
-	Lat       float64 `json:"lat"`
-	Lng       float64 `json:"lng"`
-	City      string  `json:"city"`
-	Country   string  `json:"country"`
-	Packets   uint64  `json:"packets"`
-	Bytes     uint64  `json:"bytes"`
-	FlowCount uint64  `json:"flow_count"`
+	Lat        float64    `json:"lat"`
+	Lng        float64    `json:"lng"`
+	City       string     `json:"city"`
+	Country    string     `json:"country"`
+	Packets    uint64     `json:"packets"`
+	Bytes      uint64     `json:"bytes"`
+	FlowCount  uint64     `json:"flow_count"`
+	RemoteAddr netip.Addr `json:"remote_addr"`
+	Direction  Direction  `json:"direction"`
 }
 
 type NetworkSummary struct {
