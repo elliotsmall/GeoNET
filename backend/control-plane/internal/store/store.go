@@ -34,7 +34,16 @@ func (store *Store) InsertBatch(ctx context.Context, records []geoip.EnrichedRec
 			r.FlowRecord.IPProtocol, r.FlowRecord.L7Protocol, r.FlowRecord.Bytes, r.FlowRecord.Packets,
 			r.FlowRecord.Direction, r.FlowRecord.Timestamp, r.Latitude, r.Latitude, r.Longitude, r.City, r.Country,
 		)
-
 	}
+
+	results := store.pool.SendBatch(ctx, batch)
+	defer results.Close()
+
+	for range records {
+		if _, err := results.Exec(); err != nil {
+			return fmt.Errorf("inserting flow record: %w", err)
+		}
+	}
+
 	return nil
 }

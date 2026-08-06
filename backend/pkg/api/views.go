@@ -9,7 +9,6 @@ type GeoPoint struct {
 	Lng       float64 `json:"lng"`
 	City      string  `json:"city"`
 	Country   string  `json:"country"`
-	ASN       string  `json:"asn"`
 	Packets   uint64  `json:"packets"`
 	Bytes     uint64  `json:"bytes"`
 	FlowCount uint64  `json:"flow_count"`
