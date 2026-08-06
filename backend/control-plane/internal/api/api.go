@@ -86,6 +86,10 @@ func (s *Server) RealTimeFlows(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) FlowsByWindow(w http.ResponseWriter, r *http.Request) {
+	window, err := parseWindow(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 
 }
 
