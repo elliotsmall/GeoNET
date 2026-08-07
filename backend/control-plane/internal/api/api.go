@@ -88,13 +88,12 @@ func (s *Server) RealTimeGeoView(w http.ResponseWriter, r *http.Request) {
 
 }
 
-//func (s *Server) RealTimeTopology(w http.ResponseWriter, r *http.Request)
-
 // Creates a GeoView from timescaleDB using specified window passed through url
 func (s *Server) GeoViewByWindow(w http.ResponseWriter, r *http.Request) {
 	window, err := parseWindow(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	requestedN := 10
@@ -108,44 +107,48 @@ func (s *Server) GeoViewByWindow(w http.ResponseWriter, r *http.Request) {
 
 	agentID, err := uuid.Parse(r.URL.Query().Get("agent_id"))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	points, err := s.store.QueryFlowsSince(r.Context(), window.Start, agentID)
 	if err != nil {
 		http.Error(w, "server error", http.StatusInternalServerError)
-	}
-
-	if len(points) == 0 {
-		view := &api.GeoView{
-			Window:  api.Window{},
-			Points:  []api.GeoPoint{},
-			TopN:    []api.GeoPoint{},
-			Summary: api.NetworkSummary{},
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(view)
 		return
 	}
 
 	topN, err := s.store.QueryTopNFlows(r.Context(), window.Start, agentID, requestedN)
 	if err != nil {
 		http.Error(w, "server error", http.StatusInternalServerError)
+		return
+	}
+
+	summary, err := s.store.AggregateSummary(r.Context(), window.Start, agentID)
+	if err != nil {
+		http.Error(w, "server error", http.StatusInternalServerError)
+		return
+	}
+
+	view := &api.GeoView{
+		Window:  window,
+		Points:  points,
+		TopN:    topN,
+		Summary: summary,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	if err := json.NewEncoder(w).Encode(view); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 }
 
-func (s *Server) TopologyByWindow(w http.ResponseWriter, r *http.Request) {
+//Topology view is a feature intended to be added at a later point after GeoView is known to work
 
-}
-
-func (s *Server) TopNByWindow(w http.ResponseWriter, r *http.Request) {
-
-}
-
-func (s *Server) SummaryByWindow(w http.ResponseWriter, r *http.Request) {
-
-}
+//func (s *Server) RealTimeTopology(w http.ResponseWriter, r *http.Request)
+//func (s *Server) TopologyByWindow(w http.ResponseWriter, r *http.Request)
 
 // ========== HELPER FUNCTIONS ==========
 

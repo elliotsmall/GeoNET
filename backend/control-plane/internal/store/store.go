@@ -83,9 +83,18 @@ func (store *Store) QueryFlowsSince(ctx context.Context, start time.Time, agentI
 
 func (store *Store) QueryTopNFlows(ctx context.Context, start time.Time, agentID uuid.UUID, n int) ([]api.GeoPoint, error) {
 	rows, err := store.pool.Query(ctx,
-		`SELECT latitude, longitude, city, country, packets, bytes, remote_addr, direction
+		`SELECT MAX(latitude) AS latitude,
+			 MAX(longitude) AS longitude, 
+			 MAX(city) AS city, 
+			 MAX(country) AS country, 
+			 SUM(packets) AS packets, 
+			 SUM(bytes) AS bytes, 
+			 remote_addr, 
+			 direction, 
+			 COUNT(*) AS flow_count
 		FROM flows
 		WHERE timestamp > $1 AND agent_id = $2
+		GROUP BY remote_addr, direction
 		ORDER BY packets DESC
 		LIMIT $3`,
 		start, agentID, n)
@@ -98,7 +107,7 @@ func (store *Store) QueryTopNFlows(ctx context.Context, start time.Time, agentID
 	for rows.Next() {
 		var p api.GeoPoint
 		if err := rows.Scan(
-			&p.Lat, &p.Lng, &p.City, &p.Country, &p.Packets, &p.Bytes, &p.RemoteAddr, &p.Direction,
+			&p.Lat, &p.Lng, &p.City, &p.Country, &p.Packets, &p.Bytes, &p.RemoteAddr, &p.Direction, &p.FlowCount,
 		); err != nil {
 			return nil, fmt.Errorf("scanning flow record: %w", err)
 		}
@@ -112,13 +121,25 @@ func (store *Store) QueryTopNFlows(ctx context.Context, start time.Time, agentID
 	return points, nil
 }
 
-func (store *Store) AggregateSummary(ctx context.Context, start time.Time, agentID uuid.UUID) (uint64, uint64, int, error) {
-	rows, err := store.pool.Query(ctx,
+func (store *Store) AggregateSummary(ctx context.Context, start time.Time, agentID uuid.UUID) (api.NetworkSummary, error) {
+	var totalFlows, uniqueIPs int
+	var totalPackets, totalBytes uint64
+	err := store.pool.QueryRow(ctx,
 		`SELECT COUNT(*) as total_flows, 
-		SUM(packets) as total_packets,
-		SUM(bytes) as total_bytes,
+		COALESCE(SUM(packets), 0) as total_packets,
+		COALESCE(SUM(bytes), 0) as total_bytes,
 		COUNT(DISTINCT remote_addr) as unique_ips
 		FROM flows
 		WHERE timestamp > $1 AND agent_id = $2`,
-		start, agentID)
+		start, agentID).Scan(&totalFlows, &totalPackets, &totalBytes, &uniqueIPs)
+	if err != nil {
+		return api.NetworkSummary{}, fmt.Errorf("issue querying: %w", err)
+	}
+
+	return api.NetworkSummary{
+		TotalFlows:   totalFlows,
+		TotalPackets: totalPackets,
+		TotalBytes:   totalBytes,
+		UniqueIPs:    uniqueIPs,
+	}, nil
 }
